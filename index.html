@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0"
+    />
     <title>Bubble Bluster</title>
     <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
     <style>
@@ -16,14 +19,16 @@
         font-family: "Courier New", monospace;
         overflow: hidden;
         touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
       }
       #game-container {
         position: relative;
         max-width: 500px;
         width: 100%;
         max-height: 1000px;
-        height: 100vh;
-        /* Placeholder para la imagen; reemplaza con tu URL */
+        height: calc(100vh - 8px);
         background-image: url("https://w0.peakpx.com/wallpaper/85/248/HD-wallpaper-bubbles-air-bubble-glitter.jpg");
         background-size: cover;
         background-position: center;
@@ -32,6 +37,8 @@
         border: 4px solid #00ffcc;
         border-radius: 15px;
         box-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
+        box-sizing: border-box;
+        touch-action: none;
       }
       #game-canvas {
         display: block;
@@ -39,12 +46,8 @@
         height: calc(100% - 50px);
         position: absolute;
         top: 50px;
-        background: rgba(
-          45,
-          45,
-          45,
-          0.7
-        ); /* Fondo semi-transparente para visibilidad */
+        background: rgba(45, 45, 45, 0.7);
+        touch-action: none;
       }
       #header {
         position: absolute;
@@ -61,15 +64,16 @@
       }
       #next-bubbles {
         position: absolute;
-        bottom: 20px;
-        right: 20px;
+        bottom: 10px;
+        right: 10px;
         display: flex;
         flex-direction: row;
-        gap: 10px;
+        gap: 8px;
+        z-index: 10;
       }
       .next-bubble {
-        width: clamp(20px, 6vw, 30px);
-        height: clamp(20px, 6vw, 30px);
+        width: clamp(16px, 5vw, 24px);
+        height: clamp(16px, 5vw, 24px);
         border-radius: 50%;
         border: 2px solid #fff;
       }
@@ -86,28 +90,44 @@
         align-items: center;
         color: #00ffcc;
         text-shadow: 0 0 5px rgba(0, 255, 204, 0.7);
-        font-size: clamp(14px, 3vw, 18px);
+        font-size: clamp(12px, 3vw, 16px);
+        z-index: 20;
       }
       #start-screen h1 {
-        font-size: clamp(32px, 8vw, 48px);
-        margin-bottom: 20px;
-
+        font-size: clamp(28px, 7vw, 40px);
+        margin-bottom: 15px;
         text-transform: uppercase;
       }
       #start-screen p {
         text-align: center;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
         line-height: 1.5;
         max-width: 80%;
       }
+      #level-screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #00ffcc;
+        text-shadow: 0 0 5px rgba(0, 255, 204, 0.7);
+        font-size: clamp(28px, 7vw, 40px);
+        z-index: 20;
+        text-transform: uppercase;
+      }
       .btn {
-        padding: clamp(10px, 3vw, 15px) clamp(20px, 5vw, 30px);
-        font-size: clamp(16px, 4vw, 20px);
+        padding: clamp(8px, 2.5vw, 12px) clamp(16px, 4vw, 24px);
+        font-size: clamp(14px, 3.5vw, 18px);
         cursor: pointer;
         background: #ff0066;
         color: white;
         border: none;
-        border-radius: 10px;
+        border-radius: 8px;
         text-shadow: 0 0 5px rgba(255, 0, 102, 0.7);
       }
       .btn:hover {
@@ -117,7 +137,7 @@
   </head>
   <body>
     <div id="game-container">
-      <div id="header">Score: <span id="score">20000</span></div>
+      <div id="header">Score: <span id="score">0</span></div>
       <canvas id="game-canvas"></canvas>
       <div id="next-bubbles">
         <div id="next1" class="next-bubble"></div>
@@ -127,15 +147,18 @@
         <h1>Bubble Bluster</h1>
         <p>
           Clear all bubbles fast!<br />
-          Use ←→ or swipe to aim, Space or tap to shoot.<br />
-          Break all bubbles before the score reaches zero!
+          Hold and swipe to aim, release to shoot (PHONE).<br />
+          Use ←→ to aim, Space to shoot (PC).<br />
+          Break all bubbles to advance levels!
         </p>
         <button id="start-btn" class="btn">Start Game</button>
       </div>
+      <div id="level-screen" style="display: none">
+        <h1>Level <span id="level-number">1</span></h1>
+      </div>
       <audio id="bgm" loop>
-        <!-- Pista arcade gratuita; reemplaza si lo deseas -->
         <source
-          src="https://cdn.pixabay.com/audio/2022/05/13/14-22-49-484_140k.mp3"
+          src="https://lqy3lriiybxcejon.public.blob.vercel-storage.com/Y58Z5vSLnB41/retro-game-music-245230-t3lDfWOigoA1V09Piz6TAELdlQ4wzd.mpeg?Kmyu"
           type="audio/mpeg"
         />
         Your browser does not support the audio element.
@@ -166,14 +189,16 @@
       let COLORS = [];
       const HEADER_HEIGHT = 50;
       let LIMIT_LINE_Y = 0;
-      const INITIAL_SCORE = 20000; // 5 minutos a 66.67 puntos por segundo
+      const BASE_SCORE_PER_LEVEL = 1000;
+      const MAX_TIME_BONUS = 5000;
+      const TIME_BONUS_DECREASE = 50;
 
       // Game state
       let grid = [];
       let currentBubble = null;
       let nextBubbles = [];
       let launcherAngle = Math.PI / 2;
-      let score = INITIAL_SCORE;
+      let totalScore = 0;
       let gameOver = false;
       let gameStarted = false;
       let particles = [];
@@ -182,54 +207,160 @@
       let keyPressedThisFrame = { left: false, right: false };
       let isMuted = false;
       let canShoot = true;
+      let audioContext = null;
+      let currentLevel = 1;
+      let levelStartTime = 0;
 
-      // Resize canvas and set BUBBLE_SIZE
+      // Detectar si es dispositivo móvil
+      const isMobile = /Mobi|Android|iPhone|iPad|iPod|Touch/.test(
+        navigator.userAgent
+      );
+
+      // Resize canvas
       function resizeCanvas() {
-        const container = document.getElementById("game-container");
-        canvas.width = Math.min(500, container.clientWidth);
-        canvas.height = Math.min(1000, container.clientHeight) - HEADER_HEIGHT;
-        BUBBLE_SIZE = canvas.width / GRID_WIDTH;
-        LIMIT_LINE_Y = canvas.height - 120;
+        try {
+          const container = document.getElementById("game-container");
+          const containerWidth = Math.min(500, container.clientWidth);
+          const containerHeight = Math.min(1000, container.clientHeight);
+
+          canvas.width = containerWidth;
+          canvas.height = containerHeight - HEADER_HEIGHT;
+          canvas.style.width = `${containerWidth}px`;
+          canvas.style.height = `${containerHeight - HEADER_HEIGHT}px`;
+
+          BUBBLE_SIZE = canvas.width / GRID_WIDTH;
+          LIMIT_LINE_Y = canvas.height - (isMobile ? 80 : 100);
+
+          if (next1 && next2) {
+            next1.style.width = `${clamp(16, (5 * canvas.width) / 100, 24)}px`;
+            next1.style.height = `${clamp(16, (5 * canvas.width) / 100, 24)}px`;
+            next2.style.width = `${clamp(16, (5 * canvas.width) / 100, 24)}px`;
+            next2.style.height = `${clamp(16, (5 * canvas.width) / 100, 24)}px`;
+          }
+        } catch (error) {
+          console.error("Canvas resize error:", error);
+        }
+      }
+      function clamp(min, val, max) {
+        return Math.max(min, Math.min(max, val));
       }
       resizeCanvas();
-      window.addEventListener("resize", resizeCanvas);
+      window.addEventListener("resize", resizeCanvas, { passive: true });
+
+      // Initialize audio context
+      function initAudioContext() {
+        try {
+          if (!audioContext) {
+            audioContext = new (window.AudioContext ||
+              window.webkitAudioContext)();
+            return true;
+          }
+        } catch (error) {
+          console.error("Audio context initialization error:", error);
+        }
+        return false;
+      }
+
+      // Play background music
+      function playBgm() {
+        try {
+          if (!isMuted && bgm) {
+            bgm.play().catch((error) => {
+              console.error("BGM playback error:", error);
+            });
+          }
+        } catch (error) {
+          console.error("BGM error:", error);
+        }
+      }
+
+      // Cleanup audio
+      function cleanupAudio() {
+        try {
+          if (bgm) {
+            bgm.pause();
+            bgm.currentTime = 0;
+          }
+          if (audioContext) {
+            audioContext.close().catch((error) => {
+              console.error("Audio context cleanup error:", error);
+            });
+            audioContext = null;
+          }
+        } catch (error) {
+          console.error("Audio cleanup error:", error);
+        }
+      }
+
+      // Show level screen
+      function showLevelScreen() {
+        const levelScreen = document.getElementById("level-screen");
+        const levelNumber = document.getElementById("level-number");
+        if (levelScreen && levelNumber) {
+          levelNumber.textContent = currentLevel;
+          levelScreen.style.display = "flex";
+          canShoot = false;
+          setTimeout(() => {
+            levelScreen.style.display = "none";
+            canShoot = true;
+            levelStartTime = performance.now();
+          }, 2000);
+        }
+      }
 
       // Initialize game
       function init() {
-        grid = Array(GRID_HEIGHT)
-          .fill()
-          .map(() => Array(GRID_WIDTH).fill(null));
-        const usedColors = new Set();
-        for (let row = 0; row < 6; row++) {
-          const isOddRow = row % 2 === 1;
-          const numBubbles = isOddRow ? 7 : 8;
-          for (let col = 0; col < numBubbles; col++) {
-            const color =
-              ALL_COLORS[Math.floor(Math.random() * ALL_COLORS.length)];
-            grid[row][col] = color;
-            usedColors.add(color);
+        try {
+          grid = Array(GRID_HEIGHT)
+            .fill()
+            .map(() => Array(GRID_WIDTH).fill(null));
+          const usedColors = new Set();
+          const initialRows = Math.min(
+            6 + Math.floor((currentLevel - 1) / 2),
+            GRID_HEIGHT - 2
+          );
+          for (let row = 0; row < initialRows; row++) {
+            const isOddRow = row % 2 === 1;
+            const numBubbles = isOddRow ? 7 : 8;
+            for (let col = 0; col < numBubbles; col++) {
+              const color =
+                ALL_COLORS[Math.floor(Math.random() * ALL_COLORS.length)];
+              grid[row][col] = color;
+              usedColors.add(color);
+            }
           }
+          COLORS = Array.from(usedColors);
+          nextBubbles = [getRandomColor(), getExistingColor()];
+          spawnBubble();
+          totalScore = 0;
+          currentLevel = 1;
+          gameOver = false;
+          gameStarted = true;
+          particles = [];
+          canShoot = true;
+          levelStartTime = performance.now();
+          if (startScreen) startScreen.style.display = "none"; // Ocultar pantalla de inicio
+          showLevelScreen();
+          updateUI();
+          initAudioContext();
+          playBgm();
+
+          if (window.FarcadeSDK) {
+            window.FarcadeSDK.singlePlayer.actions.ready();
+          }
+        } catch (error) {
+          console.error("Game init error:", error);
         }
-        COLORS = Array.from(usedColors);
-        nextBubbles = [getRandomColor(), getExistingColor()];
-        spawnBubble();
-        score = INITIAL_SCORE;
-        gameOver = false;
-        gameStarted = true;
-        particles = [];
-        canShoot = true;
-        startScreen.style.display = "none";
-        updateUI();
-        if (!isMuted) bgm.play().catch(() => {}); // Reproducir música si no está silenciada
-        window.FarcadeSDK.singlePlayer.actions.ready();
       }
 
-      // Get a random color from available colors
+      // Get random color
       function getRandomColor() {
-        return COLORS[Math.floor(Math.random() * COLORS.length)];
+        return (
+          COLORS[Math.floor(Math.random() * COLORS.length)] || ALL_COLORS[0]
+        );
       }
 
-      // Get a color that exists in the grid
+      // Get existing color
       function getExistingColor() {
         const existingColors = new Set();
         for (let row = 0; row < GRID_HEIGHT; row++) {
@@ -238,37 +369,66 @@
           }
         }
         const availableColors = Array.from(existingColors);
-        return availableColors[
-          Math.floor(Math.random() * availableColors.length)
-        ];
+        return (
+          availableColors[Math.floor(Math.random() * availableColors.length)] ||
+          ALL_COLORS[0]
+        );
       }
 
-      // Spawn bubble for launcher
+      // Spawn bubble
       function spawnBubble() {
-        currentBubble = {
-          x: canvas.width / 2,
-          y: canvas.height - 20,
-          color: nextBubbles.shift(),
-          velocity: { x: 0, y: 0 },
-          moving: false,
-        };
-        nextBubbles.push(getExistingColor());
-        canShoot = true;
-        updateUI();
+        try {
+          currentBubble = {
+            x: canvas.width / 2,
+            y: canvas.height - 20,
+            color: nextBubbles.shift(),
+            velocity: { x: 0, y: 0 },
+            moving: false,
+          };
+          nextBubbles.push(getExistingColor());
+          canShoot = true;
+          updateUI();
+        } catch (error) {
+          console.error("Spawn bubble error:", error);
+        }
       }
 
       // Snap bubble to grid
       function snapBubbleToGrid(bubble) {
-        let pos = getGridPos(bubble.x, bubble.y);
-        const isOddRow = pos.row % 2 === 1;
-        const maxCols = isOddRow ? GRID_WIDTH - 1 : GRID_WIDTH;
+        try {
+          if (!bubble) return;
+          let pos = getGridPos(bubble.x, bubble.y);
+          const isOddRow = pos.row % 2 === 1;
+          const maxCols = isOddRow ? GRID_WIDTH - 1 : GRID_WIDTH;
 
-        if (grid[pos.row][pos.col] || pos.col >= maxCols || pos.col < 0) {
-          const emptyPos = findNearestEmptySpot(pos.row, pos.col, bubble);
-          if (emptyPos) {
-            pos = emptyPos;
-          } else {
-            for (let r = Math.max(0, pos.row - 1); r < GRID_HEIGHT; r++) {
+          if (grid[pos.row][pos.col] || pos.col >= maxCols || pos.col < 0) {
+            const emptyPos = findNearestEmptySpot(pos.row, pos.col, bubble);
+            if (emptyPos) {
+              pos = emptyPos;
+            } else {
+              for (let r = Math.max(0, pos.row - 1); r < GRID_HEIGHT; r++) {
+                const rMaxCols = r % 2 === 1 ? GRID_WIDTH - 1 : GRID_WIDTH;
+                for (let c = 0; c < rMaxCols; c++) {
+                  if (!grid[r][c] && (r === 0 || hasAdjacentBubble(r, c))) {
+                    pos = { row: r, col: c };
+                    break;
+                  }
+                }
+                if (
+                  pos.row === r &&
+                  (r === 0 || hasAdjacentBubble(pos.row, pos.col))
+                )
+                  break;
+              }
+            }
+          }
+
+          if (pos.row !== 0 && !hasAdjacentBubble(pos.row, pos.col)) {
+            for (
+              let r = Math.max(0, pos.row - 1);
+              r <= Math.min(GRID_HEIGHT - 1, pos.row + 1);
+              r++
+            ) {
               const rMaxCols = r % 2 === 1 ? GRID_WIDTH - 1 : GRID_WIDTH;
               for (let c = 0; c < rMaxCols; c++) {
                 if (!grid[r][c] && (r === 0 || hasAdjacentBubble(r, c))) {
@@ -283,218 +443,154 @@
                 break;
             }
           }
-        }
 
-        if (pos.row !== 0 && !hasAdjacentBubble(pos.row, pos.col)) {
-          for (
-            let r = Math.max(0, pos.row - 1);
-            r <= Math.min(GRID_HEIGHT - 1, pos.row + 1);
-            r++
-          ) {
-            const rMaxCols = r % 2 === 1 ? GRID_WIDTH - 1 : GRID_WIDTH;
-            for (let c = 0; c < rMaxCols; c++) {
-              if (!grid[r][c] && (r === 0 || hasAdjacentBubble(r, c))) {
-                pos = { row: r, col: c };
-                break;
+          grid[pos.row][pos.col] = bubble.color;
+          if (window.FarcadeSDK) {
+            window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+          }
+          checkAndRemoveMatches(pos.row, pos.col);
+          currentBubble = null;
+
+          if (isGridEmpty()) {
+            const timeElapsed = (performance.now() - levelStartTime) / 1000; // En segundos
+            const levelScore = BASE_SCORE_PER_LEVEL * currentLevel;
+            const timeBonus = Math.max(
+              0,
+              MAX_TIME_BONUS - timeElapsed * TIME_BONUS_DECREASE
+            );
+            totalScore += Math.floor(levelScore + timeBonus);
+            currentLevel++;
+            grid = Array(GRID_HEIGHT)
+              .fill()
+              .map(() => Array(GRID_WIDTH).fill(null));
+            const usedColors = new Set();
+            const initialRows = Math.min(
+              6 + Math.floor((currentLevel - 1) / 2),
+              GRID_HEIGHT - 2
+            );
+            for (let row = 0; row < initialRows; row++) {
+              const isOddRow = row % 2 === 1;
+              const numBubbles = isOddRow ? 7 : 8;
+              for (let col = 0; col < numBubbles; col++) {
+                const color =
+                  ALL_COLORS[Math.floor(Math.random() * ALL_COLORS.length)];
+                grid[row][col] = color;
+                usedColors.add(color);
               }
             }
-            if (
-              pos.row === r &&
-              (r === 0 || hasAdjacentBubble(pos.row, pos.col))
-            )
-              break;
+            COLORS = Array.from(usedColors);
+            nextBubbles = [getRandomColor(), getExistingColor()];
+            spawnBubble();
+            showLevelScreen();
+            updateUI();
+          } else {
+            spawnBubble();
           }
-        }
-
-        grid[pos.row][pos.col] = bubble.color;
-        window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
-        checkAndRemoveMatches(pos.row, pos.col);
-        currentBubble = null;
-
-        if (isGridEmpty()) {
-          gameOver = true;
-          window.FarcadeSDK.singlePlayer.actions.gameOver({
-            score: Math.floor(score),
-          });
-        } else {
-          spawnBubble();
+        } catch (error) {
+          console.error("Snap bubble error:", error);
         }
       }
 
       // Check if grid is empty
       function isGridEmpty() {
-        for (let row = 0; row < GRID_HEIGHT; row++) {
-          for (let col = 0; col < GRID_WIDTH; col++) {
-            if (grid[row][col]) return false;
+        try {
+          for (let row = 0; row < GRID_HEIGHT; row++) {
+            for (let col = 0; col < GRID_WIDTH; col++) {
+              if (grid[row][col]) return false;
+            }
           }
+          return true;
+        } catch (error) {
+          console.error("Grid empty check error:", error);
+          return false;
         }
-        return true;
       }
 
       // Grid position calculations
       function getGridPos(x, y) {
-        const row = Math.floor(y / ((BUBBLE_SIZE * Math.sqrt(3)) / 2));
-        const isOddRow = row % 2 === 1;
-        const colOffset = isOddRow ? BUBBLE_SIZE / 2 : 0;
-        const col = Math.floor((x - colOffset) / BUBBLE_SIZE);
-        return {
-          row: Math.max(0, Math.min(GRID_HEIGHT - 1, row)),
-          col: Math.max(
-            0,
-            Math.min(isOddRow ? GRID_WIDTH - 1 : GRID_WIDTH - 1, col)
-          ),
-        };
+        try {
+          const row = Math.floor(y / ((BUBBLE_SIZE * Math.sqrt(3)) / 2));
+          const isOddRow = row % 2 === 1;
+          const colOffset = isOddRow ? BUBBLE_SIZE / 2 : 0;
+          const col = Math.floor((x - colOffset) / BUBBLE_SIZE);
+          return {
+            row: Math.max(0, Math.min(GRID_HEIGHT - 1, row)),
+            col: Math.max(
+              0,
+              Math.min(isOddRow ? GRID_WIDTH - 1 : GRID_WIDTH - 1, col)
+            ),
+          };
+        } catch (error) {
+          console.error("Get grid pos error:", error);
+          return { row: 0, col: 0 };
+        }
       }
 
       // Shooting mechanics
       function shootBubble() {
-        if (currentBubble && !currentBubble.moving && canShoot) {
-          currentBubble.velocity = {
-            x: Math.cos(launcherAngle) * 10,
-            y: -Math.sin(launcherAngle) * 10,
-          };
-          currentBubble.moving = true;
-          canShoot = false;
-          window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+        try {
+          if (currentBubble && !currentBubble.moving && canShoot) {
+            currentBubble.velocity = {
+              x: Math.cos(launcherAngle) * 10,
+              y: -Math.sin(launcherAngle) * 10,
+            };
+            currentBubble.moving = true;
+            canShoot = false;
+            if (window.FarcadeSDK) {
+              window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+            }
+          }
+        } catch (error) {
+          console.error("Shoot bubble error:", error);
         }
       }
 
       // Find nearest empty spot
       function findNearestEmptySpot(row, col, bubble) {
-        const candidates = [];
-        const bubbleX = bubble.x;
-        const bubbleY = bubble.y;
+        try {
+          const candidates = [];
+          const bubbleX = bubble.x;
+          const bubbleY = bubble.y;
 
-        for (
-          let r = Math.max(0, row - 1);
-          r <= Math.min(GRID_HEIGHT - 1, row + 1);
-          r++
-        ) {
-          const rMaxCols = r % 2 === 1 ? GRID_WIDTH - 1 : GRID_WIDTH;
-          for (let c = 0; c < rMaxCols; c++) {
-            if (!grid[r][c] && (r === 0 || hasAdjacentBubble(r, c))) {
-              const offset = r % 2 === 1 ? BUBBLE_SIZE / 2 : 0;
-              const nx = c * BUBBLE_SIZE + offset + BUBBLE_SIZE / 2;
-              const ny =
-                r * ((BUBBLE_SIZE * Math.sqrt(3)) / 2) + BUBBLE_SIZE / 2;
-              const dist = Math.hypot(nx - bubbleX, ny - bubbleY);
-              candidates.push({ row: r, col: c, dist });
+          for (
+            let r = Math.max(0, row - 1);
+            r <= Math.min(GRID_HEIGHT - 1, row + 1);
+            r++
+          ) {
+            const rMaxCols = r % 2 === 1 ? GRID_WIDTH - 1 : GRID_WIDTH;
+            for (let c = 0; c < rMaxCols; c++) {
+              if (!grid[r][c] && (r === 0 || hasAdjacentBubble(r, c))) {
+                const offset = r % 2 === 1 ? BUBBLE_SIZE / 2 : 0;
+                const nx = c * BUBBLE_SIZE + offset + BUBBLE_SIZE / 2;
+                const ny =
+                  r * ((BUBBLE_SIZE * Math.sqrt(3)) / 2) + BUBBLE_SIZE / 2;
+                const dist = Math.hypot(nx - bubbleX, ny - bubbleY);
+                candidates.push({ row: r, col: c, dist });
+              }
             }
           }
-        }
 
-        if (candidates.length === 0) return null;
+          if (candidates.length === 0) return null;
 
-        candidates.sort((a, b) => {
-          if (Math.abs(a.dist - b.dist) < 0.01) {
-            return Math.random() < 0.5 ? -1 : 1;
-          }
-          return a.dist - b.dist;
-        });
-
-        return candidates[0];
-      }
-
-      // Verificar si una posición tiene contacto con otra burbuja
-      function hasAdjacentBubble(row, col) {
-        const isOddRow = row % 2 === 1;
-        const maxCols = isOddRow ? GRID_WIDTH - 1 : GRID_WIDTH;
-        const neighbors = [
-          { row: row - 1, col: col },
-          { row: row + 1, col: col },
-          { row: row, col: col - 1 },
-          { row: row, col: col + 1 },
-          { row: row - 1, col: isOddRow ? col + 1 : col - 1 },
-          { row: row + 1, col: isOddRow ? col + 1 : col - 1 },
-        ];
-
-        for (let n of neighbors) {
-          if (
-            n.row >= 0 &&
-            n.row < GRID_HEIGHT &&
-            n.col >= 0 &&
-            n.col < (n.row % 2 === 1 ? GRID_WIDTH - 1 : GRID_WIDTH) &&
-            grid[n.row][n.col]
-          ) {
-            return true;
-          }
-        }
-        return false;
-      }
-
-      // Check matches and remove them
-      function checkAndRemoveMatches(row, col) {
-        if (!grid[row][col]) return;
-        const matches = checkMatches(row, col);
-        if (matches.length >= 3) {
-          matches.forEach(({ row, col }) => {
-            createParticles(row, col, grid[row][col]);
-            grid[row][col] = null;
+          candidates.sort((a, b) => {
+            if (Math.abs(a.dist - b.dist) < 0.01) {
+              return Math.random() < 0.5 ? -1 : 1;
+            }
+            return a.dist - b.dist;
           });
-          window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
-          removeFloatingBubbles();
+
+          return candidates[0];
+        } catch (error) {
+          console.error("Find empty spot error:", error);
+          return null;
         }
       }
 
-      // Match checking
-      function checkMatches(row, col) {
-        const color = grid[row][col];
-        const visited = new Set();
-        const toCheck = [{ row, col }];
-        const matches = [];
-
-        while (toCheck.length) {
-          const { row: r, col: c } = toCheck.pop();
-          const key = `${r},${c}`;
-          const isOddRow = r % 2 === 1;
-          if (
-            visited.has(key) ||
-            r < 0 ||
-            r >= GRID_HEIGHT ||
-            c < 0 ||
-            c >= GRID_WIDTH ||
-            grid[r][c] !== color
-          )
-            continue;
-
-          visited.add(key);
-          matches.push({ row: r, col: c });
-
-          const neighbors = [
-            { row: r - 1, col: c },
-            { row: r + 1, col: c },
-            { row: r, col: c - 1 },
-            { row: r, col: c + 1 },
-            { row: r - 1, col: isOddRow ? c + 1 : c - 1 },
-            { row: r + 1, col: isOddRow ? c + 1 : c - 1 },
-          ];
-          toCheck.push(...neighbors);
-        }
-        return matches;
-      }
-
-      // Remove floating bubbles
-      function removeFloatingBubbles() {
-        const connected = new Set();
-        const toCheck = [];
-
-        for (let col = 0; col < GRID_WIDTH; col++) {
-          if (grid[0][col]) {
-            toCheck.push({ row: 0, col });
-          }
-        }
-
-        while (toCheck.length) {
-          const { row, col } = toCheck.pop();
-          const key = `${row},${col}`;
-          if (connected.has(key) || !grid[row][col]) continue;
-
-          connected.add(key);
-
+      // Check adjacent bubble
+      function hasAdjacentBubble(row, col) {
+        try {
           const isOddRow = row % 2 === 1;
           const maxCols = isOddRow ? GRID_WIDTH - 1 : GRID_WIDTH;
-          if (col >= maxCols) continue;
-
           const neighbors = [
             { row: row - 1, col: col },
             { row: row + 1, col: col },
@@ -512,397 +608,644 @@
               n.col < (n.row % 2 === 1 ? GRID_WIDTH - 1 : GRID_WIDTH) &&
               grid[n.row][n.col]
             ) {
-              toCheck.push(n);
+              return true;
             }
           }
+          return false;
+        } catch (error) {
+          console.error("Has adjacent bubble error:", error);
+          return false;
         }
+      }
 
-        for (let row = 0; row < GRID_HEIGHT; row++) {
-          const maxCols = row % 2 === 1 ? GRID_WIDTH - 1 : GRID_WIDTH;
-          for (let col = 0; col < maxCols; col++) {
-            if (grid[row][col] && !connected.has(`${row},${col}`)) {
+      // Check and remove matches
+      function checkAndRemoveMatches(row, col) {
+        try {
+          if (!grid[row][col]) return;
+          const matches = checkMatches(row, col);
+          if (matches.length >= 3) {
+            matches.forEach(({ row, col }) => {
               createParticles(row, col, grid[row][col]);
               grid[row][col] = null;
+            });
+            if (window.FarcadeSDK) {
+              window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+            }
+            removeFloatingBubbles();
+          }
+        } catch (error) {
+          console.error("Check matches error:", error);
+        }
+      }
+
+      // Match checking
+      function checkMatches(row, col) {
+        try {
+          const color = grid[row][col];
+          const visited = new Set();
+          const toCheck = [{ row, col }];
+          const matches = [];
+
+          while (toCheck.length) {
+            const { row: r, col: c } = toCheck.pop();
+            const key = `${r},${c}`;
+            const isOddRow = r % 2 === 1;
+            if (
+              visited.has(key) ||
+              r < 0 ||
+              r >= GRID_HEIGHT ||
+              c < 0 ||
+              c >= GRID_WIDTH ||
+              grid[r] === undefined ||
+              grid[r][c] !== color
+            )
+              continue;
+
+            visited.add(key);
+            matches.push({ row: r, col: c });
+
+            const neighbors = [
+              { row: r - 1, col: c },
+              { row: r + 1, col: c },
+              { row: r, col: c - 1 },
+              { row: r, col: c + 1 },
+              { row: r - 1, col: isOddRow ? c + 1 : c - 1 },
+              { row: r + 1, col: isOddRow ? c + 1 : c - 1 },
+            ];
+            toCheck.push(...neighbors);
+          }
+          return matches;
+        } catch (error) {
+          console.error("Match checking error:", error);
+          return [];
+        }
+      }
+
+      // Remove floating bubbles
+      function removeFloatingBubbles() {
+        try {
+          const connected = new Set();
+          const toCheck = [];
+
+          for (let col = 0; col < GRID_WIDTH; col++) {
+            if (grid[0][col]) {
+              toCheck.push({ row: 0, col });
             }
           }
+
+          while (toCheck.length) {
+            const { row, col } = toCheck.pop();
+            const key = `${row},${col}`;
+            if (connected.has(key) || !grid[row][col]) continue;
+
+            connected.add(key);
+
+            const isOddRow = row % 2 === 1;
+            const maxCols = isOddRow ? GRID_WIDTH - 1 : GRID_WIDTH;
+            if (col >= maxCols) continue;
+
+            const neighbors = [
+              { row: row - 1, col: col },
+              { row: row + 1, col: col },
+              { row: row, col: col - 1 },
+              { row: row, col: col + 1 },
+              { row: row - 1, col: isOddRow ? col + 1 : col - 1 },
+              { row: row + 1, col: isOddRow ? col + 1 : col - 1 },
+            ];
+
+            for (let n of neighbors) {
+              if (
+                n.row >= 0 &&
+                n.row < GRID_HEIGHT &&
+                n.col >= 0 &&
+                n.col < (n.row % 2 === 1 ? GRID_WIDTH - 1 : GRID_WIDTH) &&
+                grid[n.row][n.col]
+              ) {
+                toCheck.push(n);
+              }
+            }
+          }
+
+          for (let row = 0; row < GRID_HEIGHT; row++) {
+            const maxCols = row % 2 === 1 ? GRID_WIDTH - 1 : GRID_WIDTH;
+            for (let col = 0; col < maxCols; col++) {
+              if (grid[row][col] && !connected.has(`${row},${col}`)) {
+                createParticles(row, col, grid[row][col]);
+                grid[row][col] = null;
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Remove floating bubbles error:", error);
         }
       }
 
       // Particle animation
       function createParticles(row, col, color) {
-        for (let i = 0; i < 10; i++) {
+        try {
+          const particleCount = isMobile ? 5 : 10;
           const offset = row % 2 === 1 ? BUBBLE_SIZE / 2 : 0;
-          particles.push({
-            x: col * BUBBLE_SIZE + offset + BUBBLE_SIZE / 2,
-            y: row * ((BUBBLE_SIZE * Math.sqrt(3)) / 2),
-            vx: (Math.random() - 0.5) * 6,
-            vy: (Math.random() - 0.5) * 6,
-            size: Math.random() * 6 + 2,
-            color: color,
-            life: 30,
-          });
+          for (let i = 0; i < particleCount; i++) {
+            particles.push({
+              x: col * BUBBLE_SIZE + offset + BUBBLE_SIZE / 2,
+              y: row * ((BUBBLE_SIZE * Math.sqrt(3)) / 2),
+              vx: (Math.random() - 0.5) * 6,
+              vy: (Math.random() - 0.5) * 6,
+              size: Math.random() * 6 + 2,
+              color: color,
+              life: 30,
+            });
+          }
+          if (particles.length > 100) {
+            particles = particles.slice(-100);
+          }
+        } catch (error) {
+          console.error("Create particles error:", error);
         }
       }
 
-      // Calculate trajectory until collision
+      // Calculate trajectory
       function calculateTrajectoryAndCollision() {
-        const launcherX = canvas.width / 2;
-        const launcherY = canvas.height - 20;
-        let x = launcherX;
-        let y = launcherY;
-        let vx = Math.cos(launcherAngle) * 5;
-        let vy = -Math.sin(launcherAngle) * 5;
-        const points = [];
-        let collisionX, collisionY;
+        try {
+          const launcherX = canvas.width / 2;
+          const launcherY = canvas.height - 20;
+          let x = launcherX;
+          let y = launcherY;
+          let vx = Math.cos(launcherAngle) * 5;
+          let vy = -Math.sin(launcherAngle) * 5;
+          const points = [];
+          let collisionX, collisionY;
 
-        while (y > 0) {
-          points.push({ x, y });
+          while (y > 0) {
+            points.push({ x, y });
 
-          x += vx;
-          y += vy;
+            x += vx;
+            y += vy;
 
-          if (x < BUBBLE_SIZE / 2 || x > canvas.width - BUBBLE_SIZE / 2) {
-            vx *= -1;
-            x = Math.max(
-              BUBBLE_SIZE / 2,
-              Math.min(canvas.width - BUBBLE_SIZE / 2, x)
-            );
-          }
+            if (x < BUBBLE_SIZE / 2 || x > canvas.width - BUBBLE_SIZE / 2) {
+              vx *= -1;
+              x = Math.max(
+                BUBBLE_SIZE / 2,
+                Math.min(canvas.width - BUBBLE_SIZE / 2, x)
+              );
+            }
 
-          const pos = getGridPos(x, y);
-          for (
-            let row = Math.max(0, pos.row - 1);
-            row <= Math.min(GRID_HEIGHT - 1, pos.row + 1);
-            row++
-          ) {
-            for (let col = 0; col < GRID_WIDTH; col++) {
-              if (grid[row][col]) {
-                const offset = row % 2 === 1 ? BUBBLE_SIZE / 2 : 0;
-                const bubbleX = col * BUBBLE_SIZE + offset + BUBBLE_SIZE / 2;
-                const bubbleY =
-                  row * ((BUBBLE_SIZE * Math.sqrt(3)) / 2) + BUBBLE_SIZE / 2;
-                if (Math.hypot(x - bubbleX, y - bubbleY) < BUBBLE_SIZE * 0.9) {
-                  collisionX = x;
-                  collisionY = y;
-                  points.push({ x: collisionX, y: collisionY });
-                  return { points, collisionX, collisionY };
+            const pos = getGridPos(x, y);
+            for (
+              let row = Math.max(0, pos.row - 1);
+              row <= Math.min(GRID_HEIGHT - 1, pos.row + 1);
+              row++
+            ) {
+              for (let col = 0; col < GRID_WIDTH; col++) {
+                if (grid[row][col]) {
+                  const offset = row % 2 === 1 ? BUBBLE_SIZE / 2 : 0;
+                  const bubbleX = col * BUBBLE_SIZE + offset + BUBBLE_SIZE / 2;
+                  const bubbleY =
+                    row * ((BUBBLE_SIZE * Math.sqrt(3)) / 2) + BUBBLE_SIZE / 2;
+                  if (
+                    Math.hypot(x - bubbleX, y - bubbleY) <
+                    BUBBLE_SIZE * 0.9
+                  ) {
+                    collisionX = x;
+                    collisionY = y;
+                    points.push({ x: collisionX, y: collisionY });
+                    return { points, collisionX, collisionY };
+                  }
                 }
               }
             }
-          }
 
-          if (y < BUBBLE_SIZE / 2) {
-            collisionX = x;
-            collisionY = y;
-            points.push({ x: collisionX, y: collisionY });
-            return { points, collisionX, collisionY };
+            if (y < BUBBLE_SIZE / 2) {
+              collisionX = x;
+              collisionY = y;
+              points.push({ x: collisionX, y: collisionY });
+              return { points, collisionX, collisionY };
+            }
           }
+          collisionX = x;
+          collisionY = y;
+          points.push({ x: collisionX, y: collisionY });
+          return { points, collisionX, collisionY };
+        } catch (error) {
+          console.error("Calculate trajectory error:", error);
+          return { points: [], collisionX: 0, collisionY: 0 };
         }
-        collisionX = x;
-        collisionY = y;
-        points.push({ x: collisionX, y: collisionY });
-        return { points, collisionX, collisionY };
       }
 
       // Update game state
       function update() {
-        if (!gameStarted || gameOver) return;
+        try {
+          if (!gameStarted || gameOver) return;
 
-        if (currentBubble && currentBubble.moving) {
-          currentBubble.x += currentBubble.velocity.x;
-          currentBubble.y += currentBubble.velocity.y;
+          if (currentBubble && currentBubble.moving) {
+            currentBubble.x += currentBubble.velocity.x;
+            currentBubble.y += currentBubble.velocity.y;
 
-          if (
-            currentBubble.x < BUBBLE_SIZE / 2 ||
-            currentBubble.x > canvas.width - BUBBLE_SIZE / 2
-          ) {
-            currentBubble.velocity.x *= -1;
-            currentBubble.x = Math.max(
-              BUBBLE_SIZE / 2,
-              Math.min(canvas.width - BUBBLE_SIZE / 2, currentBubble.x)
-            );
-          }
+            if (
+              currentBubble.x < BUBBLE_SIZE / 2 ||
+              currentBubble.x > canvas.width - BUBBLE_SIZE / 2
+            ) {
+              currentBubble.velocity.x *= -1;
+              currentBubble.x = Math.max(
+                BUBBLE_SIZE / 2,
+                Math.min(canvas.width - BUBBLE_SIZE / 2, currentBubble.x)
+              );
+            }
 
-          if (currentBubble.y < BUBBLE_SIZE / 2) {
-            currentBubble.moving = false;
-            snapBubbleToGrid(currentBubble);
-            return;
-          }
+            if (currentBubble.y < BUBBLE_SIZE / 2) {
+              currentBubble.moving = false;
+              snapBubbleToGrid(currentBubble);
+              return;
+            }
 
-          const pos = getGridPos(currentBubble.x, currentBubble.y);
-          for (
-            let row = Math.max(0, pos.row - 1);
-            row <= Math.min(GRID_HEIGHT - 1, pos.row + 1);
-            row++
-          ) {
-            for (let col = 0; col < GRID_WIDTH; col++) {
-              if (grid[row][col]) {
-                const offset = row % 2 === 1 ? BUBBLE_SIZE / 2 : 0;
-                const bubbleX = col * BUBBLE_SIZE + offset + BUBBLE_SIZE / 2;
-                const bubbleY =
-                  row * ((BUBBLE_SIZE * Math.sqrt(3)) / 2) + BUBBLE_SIZE / 2;
-                if (
-                  Math.hypot(
-                    currentBubble.x - bubbleX,
-                    currentBubble.y - bubbleY
-                  ) <
-                  BUBBLE_SIZE * 0.9
-                ) {
-                  currentBubble.moving = false;
-                  snapBubbleToGrid(currentBubble);
-                  return;
+            const pos = getGridPos(currentBubble.x, currentBubble.y);
+            for (
+              let row = Math.max(0, pos.row - 1);
+              row <= Math.min(GRID_HEIGHT - 1, pos.row + 1);
+              row++
+            ) {
+              for (let col = 0; col < GRID_WIDTH; col++) {
+                if (grid[row][col]) {
+                  const offset = row % 2 === 1 ? BUBBLE_SIZE / 2 : 0;
+                  const bubbleX = col * BUBBLE_SIZE + offset + BUBBLE_SIZE / 2;
+                  const bubbleY =
+                    row * ((BUBBLE_SIZE * Math.sqrt(3)) / 2) + BUBBLE_SIZE / 2;
+                  if (
+                    Math.hypot(
+                      currentBubble.x - bubbleX,
+                      currentBubble.y - bubbleY
+                    ) <
+                    BUBBLE_SIZE * 0.9
+                  ) {
+                    currentBubble.moving = false;
+                    snapBubbleToGrid(currentBubble);
+                    return;
+                  }
                 }
               }
             }
           }
-        }
 
-        // Movimiento continuo del lanzador
-        if (keysPressed.left) launcherAngle += 0.01;
-        if (keysPressed.right) launcherAngle -= 0.01;
-        launcherAngle = Math.max(
-          Math.PI / 2 - 1.4835,
-          Math.min(Math.PI / 2 + 1.4835, launcherAngle)
-        );
+          if (keysPressed.left) launcherAngle += 0.01;
+          if (keysPressed.right) launcherAngle -= 0.01;
+          launcherAngle = Math.max(
+            Math.PI / 2 - 1.4835,
+            Math.min(Math.PI / 2 + 1.4835, launcherAngle)
+          );
 
-        // Resetear flags de toque corto
-        keyPressedThisFrame.left = false;
-        keyPressedThisFrame.right = false;
+          keyPressedThisFrame.left = false;
+          keyPressedThisFrame.right = false;
 
-        particles = particles.filter((p) => p.life > 0);
-        particles.forEach((p) => {
-          p.x += p.vx;
-          p.y += p.vy;
-          p.vy += 0.1;
-          p.life--;
-          p.size *= 0.95;
-        });
+          particles = particles.filter((p) => p?.life > 0);
+          particles.forEach((p) => {
+            if (p) {
+              p.x += p.vx;
+              p.y += p.vy;
+              p.vy += 0.1;
+              p.life--;
+              p.size *= 0.95;
+            }
+          });
 
-        // Reducir score
-        score = Math.max(0, score - 1.1111); // ~66.67 por segundo a 60 FPS
-        updateUI();
+          updateUI();
 
-        // Game Over si toca la línea púrpura o score llega a 0
-        for (let row = 0; row < GRID_HEIGHT; row++) {
-          for (let col = 0; col < GRID_WIDTH; col++) {
-            if (
-              grid[row][col] &&
-              row * ((BUBBLE_SIZE * Math.sqrt(3)) / 2) + BUBBLE_SIZE >=
-                LIMIT_LINE_Y
-            ) {
-              gameOver = true;
-              window.FarcadeSDK.singlePlayer.actions.gameOver({
-                score: Math.floor(score),
-              });
+          for (let row = 0; row < GRID_HEIGHT; row++) {
+            for (let col = 0; col < GRID_WIDTH; col++) {
+              if (
+                grid[row][col] &&
+                row * ((BUBBLE_SIZE * Math.sqrt(3)) / 2) + BUBBLE_SIZE >=
+                  LIMIT_LINE_Y
+              ) {
+                gameOver = true;
+                if (window.FarcadeSDK) {
+                  window.FarcadeSDK.singlePlayer.actions.gameOver({
+                    score: Math.floor(totalScore),
+                  });
+                }
+                cleanupAudio();
+                return;
+              }
             }
           }
-        }
-
-        if (score <= 0) {
-          gameOver = true;
-          window.FarcadeSDK.singlePlayer.actions.gameOver({ score: 0 });
+        } catch (error) {
+          console.error("Update error:", error);
         }
       }
 
       // Render game
       function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        try {
+          if (!ctx) return;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (gameStarted) {
-          for (let y = 0; y < GRID_HEIGHT; y++) {
-            for (let x = 0; x < GRID_WIDTH; x++) {
-              if (grid[y][x]) {
-                const offset = y % 2 === 1 ? BUBBLE_SIZE / 2 : 0;
-                const bubbleX = x * BUBBLE_SIZE + offset;
-                const bubbleY = y * ((BUBBLE_SIZE * Math.sqrt(3)) / 2);
-                ctx.beginPath();
-                ctx.arc(
-                  bubbleX + BUBBLE_SIZE / 2,
-                  bubbleY + BUBBLE_SIZE / 2,
-                  BUBBLE_SIZE / 2 - 2,
-                  0,
-                  Math.PI * 2
-                );
-                ctx.fillStyle = grid[y][x];
-                ctx.fill();
-                ctx.strokeStyle = "#fff";
-                ctx.lineWidth = 2;
-                ctx.stroke();
+          if (gameStarted) {
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+              for (let x = 0; x < GRID_WIDTH; x++) {
+                if (grid[y][x]) {
+                  const offset = y % 2 === 1 ? BUBBLE_SIZE / 2 : 0;
+                  const bubbleX = x * BUBBLE_SIZE + offset;
+                  const bubbleY = y * ((BUBBLE_SIZE * Math.sqrt(3)) / 2);
+                  ctx.beginPath();
+                  ctx.arc(
+                    bubbleX + BUBBLE_SIZE / 2,
+                    bubbleY + BUBBLE_SIZE / 2,
+                    BUBBLE_SIZE / 2 - 2,
+                    0,
+                    Math.PI * 2
+                  );
+                  ctx.fillStyle = grid[y][x];
+                  ctx.fill();
+                  ctx.strokeStyle = "#fff";
+                  ctx.lineWidth = 2;
+                  ctx.stroke();
+                }
               }
             }
-          }
 
-          if (currentBubble) {
+            if (currentBubble) {
+              ctx.beginPath();
+              ctx.arc(
+                currentBubble.x,
+                currentBubble.y,
+                BUBBLE_SIZE / 2 - 2,
+                0,
+                Math.PI * 2
+              );
+              ctx.fillStyle = currentBubble.color;
+              ctx.fill();
+              ctx.strokeStyle = "#fff";
+              ctx.stroke();
+            }
+
+            const launcherX = canvas.width / 2;
+            const launcherY = canvas.height - 20;
+            const circleRadius = isMobile ? 30 : 40;
+            const arrowLength = isMobile ? 60 : 80;
+
             ctx.beginPath();
-            ctx.arc(
-              currentBubble.x,
-              currentBubble.y,
-              BUBBLE_SIZE / 2 - 2,
-              0,
-              Math.PI * 2
-            );
-            ctx.fillStyle = currentBubble.color;
-            ctx.fill();
-            ctx.strokeStyle = "#fff";
+            ctx.arc(launcherX, launcherY, circleRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = "#ff0066";
+            ctx.lineWidth = 2;
             ctx.stroke();
-          }
 
-          const launcherX = canvas.width / 2;
-          const launcherY = canvas.height - 20;
-          const circleRadius = 40;
-          const arrowLength = 80;
+            const arrowStartX = launcherX;
+            const arrowStartY = launcherY;
+            const arrowEndX =
+              arrowStartX + Math.cos(launcherAngle) * arrowLength;
+            const arrowEndY =
+              arrowStartY - Math.sin(launcherAngle) * arrowLength;
 
-          ctx.beginPath();
-          ctx.arc(launcherX, launcherY, circleRadius, 0, Math.PI * 2);
-          ctx.strokeStyle = "#ff0066";
-          ctx.lineWidth = 2;
-          ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(arrowStartX, arrowStartY);
+            ctx.lineTo(arrowEndX, arrowEndY);
+            ctx.strokeStyle = "#ff0066";
+            ctx.lineWidth = 4;
+            ctx.stroke();
 
-          const arrowStartX = launcherX;
-          const arrowStartY = launcherY;
-          const arrowEndX = arrowStartX + Math.cos(launcherAngle) * arrowLength;
-          const arrowEndY = arrowStartY - Math.sin(launcherAngle) * arrowLength;
+            ctx.beginPath();
+            ctx.moveTo(arrowEndX, arrowEndY);
+            ctx.lineTo(
+              arrowEndX - Math.cos(launcherAngle + Math.PI / 6) * 15,
+              arrowEndY + Math.sin(launcherAngle + Math.PI / 6) * 15
+            );
+            ctx.moveTo(arrowEndX, arrowEndY);
+            ctx.lineTo(
+              arrowEndX - Math.cos(launcherAngle - Math.PI / 6) * 15,
+              arrowEndY + Math.sin(launcherAngle - Math.PI / 6) * 15
+            );
+            ctx.stroke();
 
-          ctx.beginPath();
-          ctx.moveTo(arrowStartX, arrowStartY);
-          ctx.lineTo(arrowEndX, arrowEndY);
-          ctx.strokeStyle = "#ff0066";
-          ctx.lineWidth = 4;
-          ctx.stroke();
+            if (currentBubble && !currentBubble.moving) {
+              const { points, collisionX, collisionY } =
+                calculateTrajectoryAndCollision();
+              points.forEach((point, i) => {
+                if (i % 4 === 0) {
+                  ctx.beginPath();
+                  ctx.arc(point.x, point.y, 2, 0, Math.PI * 2);
+                  ctx.fillStyle = "#00ffcc";
+                  ctx.fill();
+                }
+              });
+              ctx.beginPath();
+              ctx.arc(collisionX, collisionY, 4, 0, Math.PI * 2);
+              ctx.fillStyle = "#ff0066";
+              ctx.fill();
+            }
 
-          ctx.beginPath();
-          ctx.moveTo(arrowEndX, arrowEndY);
-          ctx.lineTo(
-            arrowEndX - Math.cos(launcherAngle + Math.PI / 6) * 15,
-            arrowEndY + Math.sin(launcherAngle + Math.PI / 6) * 15
-          );
-          ctx.moveTo(arrowEndX, arrowEndY);
-          ctx.lineTo(
-            arrowEndX - Math.cos(launcherAngle - Math.PI / 6) * 15,
-            arrowEndY + Math.sin(launcherAngle - Math.PI / 6) * 15
-          );
-          ctx.stroke();
-
-          if (currentBubble && !currentBubble.moving) {
-            const { points, collisionX, collisionY } =
-              calculateTrajectoryAndCollision();
-            points.forEach((point, i) => {
-              if (i % 4 === 0) {
+            particles.forEach((p) => {
+              if (p) {
                 ctx.beginPath();
-                ctx.arc(point.x, point.y, 2, 0, Math.PI * 2);
-                ctx.fillStyle = "#00ffcc";
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
                 ctx.fill();
               }
             });
+
             ctx.beginPath();
-            ctx.arc(collisionX, collisionY, 4, 0, Math.PI * 2);
-            ctx.fillStyle = "#ff0066";
-            ctx.fill();
+            ctx.moveTo(0, LIMIT_LINE_Y);
+            ctx.lineTo(canvas.width, LIMIT_LINE_Y);
+            ctx.strokeStyle = "#ff0066";
+            ctx.lineWidth = 2;
+            ctx.stroke();
           }
-
-          particles.forEach((p) => {
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fillStyle = p.color;
-            ctx.fill();
-          });
-
-          ctx.beginPath();
-          ctx.moveTo(0, LIMIT_LINE_Y);
-          ctx.lineTo(canvas.width, LIMIT_LINE_Y);
-          ctx.strokeStyle = "#ff0066";
-          ctx.lineWidth = 2;
-          ctx.stroke();
+        } catch (error) {
+          console.error("Draw error:", error);
         }
       }
 
       // Update UI
       function updateUI() {
-        scoreDisplay.textContent = Math.floor(score);
-        next1.style.backgroundColor = nextBubbles[0] || "#ffffff";
-        next2.style.backgroundColor = nextBubbles[1] || "#ffffff";
+        try {
+          if (scoreDisplay) scoreDisplay.textContent = Math.floor(totalScore);
+          if (next1) next1.style.backgroundColor = nextBubbles[0] || "#ffffff";
+          if (next2) next2.style.backgroundColor = nextBubbles[1] || "#ffffff";
+        } catch (error) {
+          console.error("Update UI error:", error);
+        }
       }
 
       // Game loop
       function gameLoop() {
-        update();
-        draw();
-        requestAnimationFrame(gameLoop);
+        try {
+          update();
+          draw();
+          requestAnimationFrame(gameLoop);
+        } catch (error) {
+          console.error("Game loop error:", error);
+        }
       }
 
-      // Keyboard input handling
-      document.addEventListener("keydown", (e) => {
-        if (gameStarted && !gameOver) {
-          if (e.key === "ArrowLeft" && !keysPressed.left) {
-            keysPressed.left = true;
-            keyPressedThisFrame.left = true;
-            launcherAngle += 0.002;
+      // Unified input handling
+      function handleInputStart(x, isTouch = false) {
+        try {
+          if (gameStarted && !gameOver) {
+            touchStartX = x;
+            if (isTouch) initAudioContext();
           }
-          if (e.key === "ArrowRight" && !keysPressed.right) {
-            keysPressed.right = true;
-            keyPressedThisFrame.right = true;
-            launcherAngle -= 0.002;
+        } catch (error) {
+          console.error("Input start error:", error);
+        }
+      }
+
+      function handleInputMove(x) {
+        try {
+          if (gameStarted && !gameOver && touchStartX !== null) {
+            const deltaX = x - touchStartX;
+            launcherAngle -= deltaX * (isMobile ? 0.003 : 0.005);
+            launcherAngle = Math.max(
+              Math.PI / 2 - 1.4835,
+              Math.min(Math.PI / 2 + 1.4835, launcherAngle)
+            );
+            touchStartX = x;
           }
-          if (e.key === " ") {
-            e.preventDefault();
+        } catch (error) {
+          console.error("Input move error:", error);
+        }
+      }
+
+      function handleInputEnd() {
+        try {
+          if (gameStarted && !gameOver && touchStartX !== null) {
             shootBubble();
+            touchStartX = null;
           }
-          launcherAngle = Math.max(
-            Math.PI / 2 - 1.4835,
-            Math.min(Math.PI / 2 + 1.4835, launcherAngle)
-          );
+        } catch (error) {
+          console.error("Input end error:", error);
+        }
+      }
+
+      // Event listeners
+      if (canvas) {
+        canvas.addEventListener(
+          "touchstart",
+          (e) => {
+            e.preventDefault();
+            if (e.touches[0]) {
+              const rect = canvas.getBoundingClientRect();
+              const scaleX = canvas.width / rect.width;
+              handleInputStart(
+                (e.touches[0].clientX - rect.left) * scaleX,
+                true
+              );
+            }
+          },
+          { passive: false }
+        );
+
+        canvas.addEventListener(
+          "touchmove",
+          (e) => {
+            e.preventDefault();
+            if (e.touches[0]) {
+              const rect = canvas.getBoundingClientRect();
+              const scaleX = canvas.width / rect.width;
+              handleInputMove((e.touches[0].clientX - rect.left) * scaleX);
+            }
+          },
+          { passive: false }
+        );
+
+        canvas.addEventListener(
+          "touchend",
+          (e) => {
+            e.preventDefault();
+            handleInputEnd();
+          },
+          { passive: false }
+        );
+
+        canvas.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          const rect = canvas.getBoundingClientRect();
+          const scaleX = canvas.width / rect.width;
+          handleInputStart((e.clientX - rect.left) * scaleX);
+        });
+
+        canvas.addEventListener("mousemove", (e) => {
+          if (touchStartX !== null) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            handleInputMove((e.clientX - rect.left) * scaleX);
+          }
+        });
+
+        canvas.addEventListener("mouseup", (e) => {
+          e.preventDefault();
+          handleInputEnd();
+        });
+
+        canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+      }
+
+      // Keyboard input
+      document.addEventListener("keydown", (e) => {
+        try {
+          if (gameStarted && !gameOver) {
+            if (e.key === "ArrowLeft" && !keysPressed.left) {
+              keysPressed.left = true;
+              keyPressedThisFrame.left = true;
+              launcherAngle += 0.002;
+            }
+            if (e.key === "ArrowRight" && !keysPressed.right) {
+              keysPressed.right = true;
+              keyPressedThisFrame.right = true;
+              launcherAngle -= 0.002;
+            }
+            if (e.key === " ") {
+              e.preventDefault();
+              shootBubble();
+            }
+            launcherAngle = Math.max(
+              Math.PI / 2 - 1.4835,
+              Math.min(Math.PI / 2 + 1.4835, launcherAngle)
+            );
+          }
+        } catch (error) {
+          console.error("Keydown error:", error);
         }
       });
 
       document.addEventListener("keyup", (e) => {
-        if (e.key === "ArrowLeft") keysPressed.left = false;
-        if (e.key === "ArrowRight") keysPressed.right = false;
-      });
-
-      // Touch input handling
-      canvas.addEventListener("touchstart", (e) => {
-        e.preventDefault();
-        const touch = e.touches[0];
-        touchStartX = touch.clientX;
-
-        if (gameStarted && !gameOver) {
-          setTimeout(() => {
-            if (touchStartX !== null) shootBubble();
-          }, 100);
+        try {
+          if (e.key === "ArrowLeft") keysPressed.left = false;
+          if (e.key === "ArrowRight") keysPressed.right = false;
+        } catch (error) {
+          console.error("Keyup error:", error);
         }
       });
 
-      canvas.addEventListener("touchmove", (e) => {
-        e.preventDefault();
-        if (gameStarted && !gameOver && touchStartX !== null) {
-          const touch = e.touches[0];
-          const deltaX = touch.clientX - touchStartX;
-          launcherAngle -= deltaX * 0.005;
-          launcherAngle = Math.max(
-            Math.PI / 2 - 1.4835,
-            Math.min(Math.PI / 2 + 1.4835, launcherAngle)
-          );
-          touchStartX = touch.clientX;
-        }
-      });
+      // Start button
+      if (startBtn) {
+        startBtn.addEventListener("click", () => {
+          init();
+          initAudioContext();
+        });
+      }
 
-      canvas.addEventListener("touchend", (e) => {
-        e.preventDefault();
-        touchStartX = null;
-      });
+      // Farcade SDK
+      if (window.FarcadeSDK) {
+        window.FarcadeSDK.on("play_again", () => {
+          try {
+            init();
+          } catch (error) {
+            console.error("Play again error:", error);
+          }
+        });
 
-      startBtn.addEventListener("click", () => {
-        init();
-      });
+        window.FarcadeSDK.on("toggle_mute", (data) => {
+          try {
+            isMuted = data?.isMuted || false;
+            if (bgm) bgm.muted = isMuted;
+          } catch (error) {
+            console.error("Toggle mute error:", error);
+          }
+        });
+      }
 
-      // Farcade SDK event handlers
-      window.FarcadeSDK.on("play_again", () => {
-        init();
-      });
-
-      window.FarcadeSDK.on("toggle_mute", (data) => {
-        isMuted = data.isMuted;
-        bgm.muted = isMuted;
+      // Cleanup
+      window.addEventListener("unload", () => {
+        cleanupAudio();
       });
 
       updateUI();
